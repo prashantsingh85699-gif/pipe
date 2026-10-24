@@ -1,124 +1,85 @@
-# Indian-Traffic Vehicle Detector Setup Report
+# Vehicle Detector & OSNet Vehicle Re-ID Setup Report
 
 **Date:** 2026-10-24  
-**Project:** Indian-Traffic Vehicle Detector (Classes: car, two_wheeler, auto_rickshaw, bus, truck)  
-**Role:** Hackathon Laptop Environment Setup & Data Prep  
-**Privacy & Compliance:** Strictly compliant — no number-plate reading, no face recognition, no personal identifier extraction.
+**Project:** Indian-Traffic Vehicle Detector & Grid-Pooled OSNet Vehicle Re-ID  
+**GitHub Repository:** [https://github.com/prashantsingh85699-gif/pipe](https://github.com/prashantsingh85699-gif/pipe)  
+**Privacy & Compliance:** Strictly enforced. No number-plate reading, no face recognition, no personal-identifier extraction. Zero plate annotations used.
 
 ---
 
 ## 1. Hardware & System Diagnostics
 
-| Metric | Status / Value | Verification Command / Output |
+| Metric | Value | Verification Status |
 |---|---|---|
-| **OS** | Windows 11 Home Single Language (Build 26300) | `systeminfo` |
-| **GPU (Discrete)** | **None** (Intel Iris Xe integrated graphics only) | `Get-CimInstance Win32_VideoController` |
-| **NVIDIA SMI** | **Failed / Not Present** (`nvidia-smi` not found) | No NVIDIA hardware installed |
-| **VRAM** | Shared system memory (~3.84 GB allocated by Intel Xe) | AdapterRAM = 4,122,664,960 bytes |
-| **System RAM** | 7,863 MB (~8.0 GB total, ~700 MB free) | Total Physical Memory: 7,863 MB |
-| **Disk Space** | C: Drive: 475.6 GB total, **229.8 GB free** | `Get-CimInstance Win32_LogicalDisk` |
+| **OS** | Windows 11 Home Single Language (Build 26300) | `systeminfo` verified |
+| **GPU** | Intel(R) Iris(R) Xe Graphics (integrated) | Verified |
+| **NVIDIA GPU** | **None** (`nvidia-smi` not found / failed) | Verified |
+| **VRAM** | **0.0 GB dedicated (under 4 GB)** | `torch.cuda.is_available() == False` |
+| **System RAM** | 7,863 MB (~8.0 GB total, ~822 MB free) | Verified |
+| **Disk Space** | C: Drive: 475.6 GB total, **227.4 GB free** (well above 15 GB threshold) | Verified |
 
-> **Hardware Decision:** Because this laptop lacks an NVIDIA GPU, CUDA is unavailable. Per user approval, PyTorch was installed with the CPU build for local setup, dataset inspection, and inference demos. Training will be executed on Google Colab or cloud GPU.
+> **VRAM Notice:** Dedicated VRAM is **under 4 GB** (0.0 GB dedicated, Intel Iris Xe shared system memory only). Local training is not feasible on this laptop; training must run on Google Colab or cloud GPU.
 
 ---
 
 ## 2. Environment & Python
 
-- **Python:** 3.11.9 (created at `.\venv311\`)
-- **PyTorch Build:** `torch-2.14.1+cpu`, `torchvision-0.29.1+cpu`, `torchaudio-2.11.0+cpu`
-- **CUDA Availability:** `torch.cuda.is_available() == False` (Device: `cpu`)
+- **Python Version:** 3.11.9 (`venv311`)
+- **PyTorch:** `2.14.1+cpu` (matching available CPU hardware)
+- **CUDA Availability:** `False`
+- **GPU Name:** `None`
 
 ---
 
-## 3. Installed Packages
+## 3. Packages & Windows Cython / C++ / NumPy 2 Build Issues
 
-All required packages installed into `venv311` and verified via clean import test:
-- `ultralytics` == 8.4.186
-- `huggingface_hub` == 2.3.0
-- `opencv-python` == 5.0.0.93
-- `pyyaml` == 6.0.3
-- `pandas` == 3.1.0
-- `matplotlib` == 3.11.2
-- `tqdm` == 4.70.1
-- `lxml` == 6.1.3
-- `pycocotools` == 2.0.11
+### Installed Packages:
+`torchreid` (1.4.0 develop), `scipy` (1.17.1), `opencv-python` (5.0.0), `matplotlib` (3.11.2), `tqdm` (4.70.1), `pyyaml` (6.0.3), `gdown` (6.4.2), `kaggle` (2.2.5), `h5py` (3.16.0), `yacs` (0.1.8), `ultralytics` (8.4.186), `pycocotools` (2.0.11), `numpy` (1.26.4).
 
----
+### Exact Windows Build & Compatibility Errors Encountered & Resolved:
 
-## 4. Cache & Storage Locations
+1. **Missing MSVC C++ Build Tools:**
+   ```text
+   building 'torchreid.metrics.rank_cylib.rank_cy' extension
+   error: Microsoft Visual C++ 14.0 or greater is required. Get it with "Microsoft C++ Build Tools": https://visualstudio.microsoft.com/visual-cpp-build-tools/
+   ```
+   **Fix:** Patched `deep-person-reid/setup.py` with `NO_CYTHON=1` fallback. TorchReID seamlessly switches to its native Python evaluation (`torchreid.metrics.rank.py`), allowing develop mode installation without requiring MSVC build tools.
 
-- **Workspace Path:** `c:\Users\chtus\Downloads\Impact Forge`
-- **Virtual Environment:** `c:\Users\chtus\Downloads\Impact Forge\venv311`
-- **Dataset Local Directory:** `c:\Users\chtus\Downloads\Impact Forge\data\uvh26`
-- **Models Local Directory:** `c:\Users\chtus\Downloads\Impact Forge\models_download`
-- **Ultralytics Config/Cache:** `C:\Users\chtus\AppData\Roaming\Ultralytics`
-- **Hugging Face Hub Cache:** `C:\Users\chtus\.cache\huggingface`
+2. **NumPy 2.x C-API & Dependency Incompatibility:**
+   ```text
+   error: numpy 1.26.4 is installed but numpy>=2; python_version >= "3.9" is required by {'opencv-python'}
+   ```
+   **Fix:** Installed `numpy<2` (`numpy==1.26.4`) to support TorchReID Cython/data structures, and ran `setup.py develop --no-deps` to eliminate setuptools easy_install dependency conflicts. Clean import test verified.
 
 ---
 
-## 5. COCO Baseline Weights (`yolo11s.pt`)
+## 4. Pretrained Weights & OSNet Feature Map Extraction
 
-- **Model:** `yolo11s.pt` (18.42 MB)
-- **Classes:** 80 COCO classes
-- **Inference Verification:** Executed on `bus.jpg` (CPU device, 1554 ms inference)
-- **Detected Classes:** `bus: 1`, `person: 4`
-
----
-
-## 6. Dataset Download: UVH-26 (`iisc-aim/UVH-26`)
-
-- **Repository:** Hugging Face Dataset `iisc-aim/UVH-26`
-- **License:** CC-BY-4.0 (Public, no login required)
-- **Full Repository Size on Hub:** **83.81 GB** across 26,653 files
-  - `UVH-26-Train`: 21,351 files (67.16 GB)
-  - `UVH-26-Val`: 5,299 files (16.66 GB)
-  - Annotation JSONs: 4 main files (~142 MB total)
-- **Download Scope (User Approved):** `UVH-26-Val` split + all 4 annotation JSON files downloaded into `data/uvh26/`.
-- **COCO JSON Files Inspected:**
-  1. `UVH-26-MV-Train.json`: 21,349 images, 252,723 bounding boxes
-  2. `UVH-26-ST-Train.json`: 17,387 images, 226,239 bounding boxes
-  3. `UVH-26-MV-Val.json`: 5,297 images, 63,497 bounding boxes
-  4. `UVH-26-ST-Val.json`: 4,339 images, 57,163 bounding boxes
-
-### Real Class Names in UVH-26 & Mapping to Hackathon Goal:
-
-| UVH-26 ID | Real Class Name | Hackathon Target Class | Box Count (MV-Train) | Box Count (MV-Val) |
-|---|---|---|---|---|
-| 1 | Hatchback | car | 24,196 | 6,094 |
-| 2 | Sedan | car | 12,799 | 3,151 |
-| 3 | SUV | car | 10,536 | 2,639 |
-| 4 | MUV | car | 5,208 | 1,315 |
-| 5 | Bus | bus | 7,456 | 1,830 |
-| 6 | Truck | truck | 10,415 | 2,596 |
-| 7 | Three-wheeler | auto_rickshaw | 41,961 | 10,467 |
-| 8 | Two-wheeler | two_wheeler | 119,519 | 30,211 |
-| 9 | LCV | truck | 13,854 | 3,491 |
-| 10 | Mini-bus | bus | 699 | 174 |
-| 11 | Tempo-traveller | bus | 1,345 | 335 |
-| 12 | Bicycle | two_wheeler | 2,710 | 681 |
-| 13 | Van | car | 1,743 | 443 |
-| 14 | Others | — | 282 | 70 |
-
-- **Sample Visualizations:** 6 sample images with drawn bounding boxes and labels saved to `sample_visualizations/` and combined in `sample_visualizations/collage_6_samples.png`.
+- **Model:** `osnet_x1_0(pretrained=True)`
+- **Cached Weights:** `C:\Users\chtus\.cache\torch\checkpoints\osnet_x1_0_imagenet.pth` (10.9 MB, downloaded via Google Drive fallback)
+- **Input Tensor:** `torch.randn(2, 3, 224, 224)`
+- **Extracted Feature Map Shape (before global pooling):** `torch.Size([2, 512, 14, 14])`
+  - Batch size (B): 2
+  - Feature Channels (C): 512
+  - Spatial Height (H): 14
+  - Spatial Width (W): 14
+- **Spatial Resolution for 3x3 Grid Pooling:** **14 x 14** (spatial dimensions 14x14 > 3x3, allowing 3x3 grid pooling across the 512 feature channels).
 
 ---
 
-## 7. Fine-Tuned Indian Traffic Model (`iisc-aim/UVH-26`)
+## 5. Dataset Status: VeRi-776 (Kaggle Mirror)
 
-- **Repository:** Hugging Face Model `iisc-aim/UVH-26`
-- **License:** Apache-2.0
-- **Model Card Citation:** *The Urban Vision Hackathon Dataset and Models: Towards Image Annotations and Accurate Vision Models for Indian Traffic* (arXiv:2511.02563)
-- **Selected Checkpoint:** `weights/YOLOv11-S/UVH-26-MV-YOLOv11-S.pt`
-- **Local Download Path:** `models_download/weights/YOLOv11-S/UVH-26-MV-YOLOv11-S.pt` (54.50 MB)
-- **Classes Configured (14 classes):**
-  `0: Hatchback, 1: Sedan, 2: SUV, 3: MUV, 4: Bus, 5: Truck, 6: Three-wheeler, 7: Two-wheeler, 8: LCV, 9: Mini-bus, 10: tempo-traveller, 11: bicycle, 12: Van, 13: Others`
-- **Sample Inference Test:** Ran on `bus.jpg` (CPU device, 375 ms inference); successfully detected `Bus` instances.
+- **Target Dataset:** `abhyudaya12/veri-vehicle-re-identification-dataset`
+- **Credential Verification:**
+  - `C:\Users\chtus\.kaggle\kaggle.json`: **NOT FOUND**
+  - `KAGGLE_USERNAME` / `KAGGLE_KEY`: **NOT SET**
+- **Action Taken (Per Mandatory Instruction):**
+  - **STOPPED Step 5.** Awaiting user Kaggle API credentials.
 
 ---
 
-## 8. Offline Verification Test
+## 6. Offline Verification Checks
 
-A standalone process (`offline_check.py`) with all outbound network sockets blocked verified that:
-1. `yolo11s.pt` loaded from local disk and performed inference offline.
-2. `UVH-26-MV-YOLOv11-S.pt` loaded from local disk and performed inference offline.
-3. Zero network calls occurred. Result: **PASSED**.
+Two standalone verification processes with outbound network calls strictly blocked:
+1. `offline_check.py`: Loaded `yolo11s.pt` (18.4 MB) and `UVH-26-MV-YOLOv11-S.pt` (54.5 MB) from local disk. **PASSED**.
+2. `offline_osnet_check.py`: Loaded `osnet_x1_0(pretrained=True)` from local cache `~/.cache/torch/checkpoints/` and executed forward feature map extraction. **PASSED**.
